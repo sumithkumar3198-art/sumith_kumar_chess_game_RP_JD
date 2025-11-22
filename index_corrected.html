@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sumith's Chess Game</title>
+
+  <!-- Load chess.js and chessboard.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboardjs/1.0.0/css/chessboard.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboardjs/1.0.0/js/chessboard.min.js"></script>
+
+  <style>
+    body { text-align:center; font-family:Arial; background:#f4f4f4; }
+    #board { width: 420px; margin:auto; }
+    h2 { margin-top:20px; }
+  </style>
+</head>
+<body>
+
+<h2>Sumith's Chess Game</h2>
+<div id="board"></div>
+<h3 id="status"></h3>
+
+<script>
+var game = new Chess();
+var board = null;
+
+function onDragStart(source, piece) {
+  if (game.game_over()) return false;
+  if (piece[0] === 'b') return false;
+}
+
+function onDrop(source, target) {
+  let move = game.move({ from: source, to: target, promotion: 'q' });
+  if (move === null) return 'snapback';
+  updateStatus();
+}
+
+function onSnapEnd() {
+  board.position(game.fen());
+}
+
+function updateStatus() {
+  let status = "";
+  if (game.in_checkmate()) {
+    status = "Checkmate! Sumith said: GAME OVER!";
+  } else if (game.in_draw()) {
+    status = "Draw! Game Over.";
+  } else {
+    status = "Your move...";
+  }
+  document.getElementById("status").innerHTML = status;
+}
+
+board = Chessboard('board', {
+  draggable: true,
+  position: 'start',
+  onDragStart: onDragStart,
+  onDrop: onDrop,
+  onSnapEnd: onSnapEnd
+});
+
+updateStatus();
+</script>
+
+</body>
+</html>
