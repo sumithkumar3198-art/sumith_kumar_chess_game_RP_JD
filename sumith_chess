@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chess Game - Sumith</title>
+    <style>
+        body {
+            background: #222;
+            font-family: Arial;
+            text-align: center;
+            color: white;
+        }
+        #board {
+            width: 480px;
+            height: 480px;
+            margin: 30px auto;
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 4px solid white;
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            font-size: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .white { background: #eee; }
+        .black { background: #666; }
+        .selected { outline: 3px solid yellow; }
+    </style>
+</head>
+<body>
+
+<h1>Chess Game (By Sumith)</h1>
+<h3 id="status">White's Turn</h3>
+
+<div id="board"></div>
+
+<script>
+// -------------------------------------------
+// Chess Pieces (Unicode)
+// -------------------------------------------
+const pieces = {
+    white: {
+        king: "♔",
+        queen: "♕",
+        rook: "♖",
+        bishop: "♗",
+        knight: "♘",
+        pawn: "♙"
+    },
+    black: {
+        king: "♚",
+        queen: "♛",
+        rook: "♜",
+        bishop: "♝",
+        knight: "♞",
+        pawn: "♟"
+    }
+};
+
+// -------------------------------------------
+// Board Setup
+// -------------------------------------------
+let board = [
+    ["b_rook","b_knight","b_bishop","b_queen","b_king","b_bishop","b_knight","b_rook"],
+    ["b_pawn","b_pawn","b_pawn","b_pawn","b_pawn","b_pawn","b_pawn","b_pawn"],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["","","","","","","",""],
+    ["w_pawn","w_pawn","w_pawn","w_pawn","w_pawn","w_pawn","w_pawn","w_pawn"],
+    ["w_rook","w_knight","w_bishop","w_queen","w_king","w_bishop","w_knight","w_rook"]
+];
+
+let turn = "white";
+let selected = null;
+
+// -------------------------------------------
+// UI Render
+// -------------------------------------------
+const boardDiv = document.getElementById("board");
+
+function renderBoard() {
+    boardDiv.innerHTML = "";
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            let cell = document.createElement("div");
+            cell.className = "cell " + ((r + c) % 2 === 0 ? "white" : "black");
+            cell.dataset.r = r;
+            cell.dataset.c = c;
+
+            let piece = board[r][c];
+            if (piece) {
+                let [color, type] = piece.split("_");
+                cell.innerHTML = pieces[color][type];
+            }
+
+            cell.onclick = () => handleClick(r,c,cell);
+            boardDiv.appendChild(cell);
+        }
+    }
+}
+
+renderBoard();
+
+// -------------------------------------------
+// Movement Rules
+// -------------------------------------------
+function getMoves(r, c, piece) {
+    let [color, type] = piece.split("_");
+    let moves = [];
+
+    const directions = {
+        rook:  [[1,0],[-1,0],[0,1],[0,-1]],
+        bishop:[[1,1],[1,-1],[-1,1],[-1,-1]],
+        queen: [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]],
+        knight:[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]
+    };
+
+    // PAWN
+    if (type === "pawn") {
+        let dir = color === "white" ? -1 : 1;
+
+        if (!board[r+dir]?.[c]) moves.push([r+dir,c]);
+        if ((color === "white" && r === 6) || (color === "black" && r === 1)) {
+            if (!board[r+2*dir]?.[c]) moves.push([r+2*dir,c]);
+        }
+        if (board[r+dir]?.[c+1]?.startsWith(color === "white" ? "b" : "w")) moves.push([r+dir, c+1]);
+        if (board[r+dir]?.[c-1]?.startsWith(color === "white" ? "b" : "w")) moves.push([r+dir, c-1]);
+
+        return moves;
+    }
+
+    // KING (1 step)
+    if (type === "king") {
+        let steps = directions.queen;
+        for (let d of steps) {
+            let nr = r + d[0], nc = c + d[1];
+            if (nr>=0 && nr<8 && nc>=0 && nc<8) {
+                if (!board[nr][nc] || !board[nr][nc].startsWith(color[0])) {
+                    moves.push([nr,nc]);
+                }
+            }
+        }
+        return moves;
+    }
+
+    // KNIGHT
+    if (type === "knight") {
+        for (let d of directions.knight) {
+            let nr = r + d[0], nc = c + d[1];
+            if (nr>=0 && nr<8 && nc>=0 && nc<8) {
+                if (!board[nr][nc] || !board[nr][nc].startsWith(color[0])) {
+                    moves.push([nr,nc]);
+                }
+            }
+        }
+        return moves;
+    }
+
+    // ROOK, BISHOP, QUEEN
+    let dirs = directions[type];
+    for (let d of dirs) {
+        let nr = r + d[0], nc = c + d[1];
+        while (nr>=0 && nr<8 && nc>=0 && nc<8) {
+            if (!board[nr][nc]) {
+                moves.push([nr,nc]);
+            } else {
+                if (!board[nr][nc].startsWith(color[0])) moves.push([nr,nc]);
+                break;
+            }
+            nr += d[0]; nc += d[1];
+        }
+    }
+
+    return moves;
+}
+
+// -------------------------------------------
+// Handle Clicks
+// -------------------------------------------
+function handleClick(r,c,cell) {
+    let piece = board[r][c];
+
+    // Select piece
+    if (!selected) {
+        if (!piece || !piece.startsWith(turn[0])) return;
+        selected = {r,c,piece, moves: getMoves(r,c,piece)};
+        cell.classList.add("selected");
+        return;
+    }
+
+    // Move piece
+    let legal = selected.moves.some(m => m[0] === r && m[1] === c);
+    if (legal) {
+        board[r][c] = selected.piece;
+        board[selected.r][selected.c] = "";
+
+        if (checkCheckmate()) {
+            document.getElementById("status").innerText = "Sumith said game over!";
+        } else {
+            turn = turn === "white" ? "black" : "white";
+            document.getElementById("status").innerText = turn.charAt(0).toUpperCase() + turn.slice(1) + "'s Turn";
+        }
+    }
+
+    selected = null;
+    renderBoard();
+}
+
+// -------------------------------------------
+// Checkmate Detection (Simplified)
+// -------------------------------------------
+function checkCheckmate() {
+    let kingPos = null;
+    let enemy = turn === "white" ? "black" : "white";
+
+    for (let r=0; r<8; r++) {
+        for (let c=0; c<8; c++) {
+            if (board[r][c] === (enemy[0] + "_king").replace("b_","b_").replace("w_","w_")) {
+                kingPos = [r,c];
+            }
+        }
+    }
+
+    if (!kingPos) return true; // king captured
+
+    return false;
+}
+
+</script>
+
+</body>
+</html>
+
